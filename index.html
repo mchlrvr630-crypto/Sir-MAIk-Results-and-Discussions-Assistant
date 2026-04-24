@@ -76,7 +76,9 @@
         .btn-rem { background: var(--btn-del); } .btn-rem:hover { background: #b91c1c; }
         .btn-clear { background: var(--btn-warn); color: black;} .btn-clear:hover { background: #ca8a04; }
         
-        .builder-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 20px; background: #fafafa;}
+        .builder-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 5px; background: #fafafa;}
+        .builder-tip { font-size: 0.85rem; color: var(--primary); margin-bottom: 20px; font-weight: 600; }
+        
         #builder-table { border-collapse: collapse; width: 100%; min-width: 600px; }
         #builder-table th, #builder-table td { padding: 8px; border: 1px solid #e2e8f0; }
         #builder-table th { background: var(--primary-light); }
@@ -105,8 +107,11 @@
         #output-area { margin-top: 35px; display: none; padding-top: 20px; border-top: 3px dashed var(--border); }
         .doc-header { text-align: center; color: var(--primary); margin-bottom: 20px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;}
         
-        .result-block { margin-bottom: 50px; padding-bottom: 30px; border-bottom: 1px solid #e2e8f0; }
+        .result-block { margin-bottom: 50px; padding-bottom: 30px; border-bottom: 1px solid #e2e8f0; position: relative; }
         
+        .delete-block-btn { position: absolute; top: -10px; right: 0; background: var(--btn-del); color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: bold;}
+        .delete-block-btn:hover { background: #991b1b; }
+
         /* Strict APA 7th Table CSS for Web Preview */
         .apa-table-container { margin-bottom: 25px; font-family: 'Times New Roman', Times, serif; font-size: 12pt; color: black; }
         .apa-table-num { font-weight: bold; margin-bottom: 4px; }
@@ -152,7 +157,7 @@
             <button class="btn-ctrl btn-rem" onclick="removeRow()">- Remove Row</button>
             <button class="btn-ctrl btn-add" onclick="addCol()">+ Add Column</button>
             <button class="btn-ctrl btn-rem" onclick="removeCol()">- Remove Column</button>
-            <button class="btn-ctrl btn-clear" onclick="clearForm()" style="margin-left: auto;">🧹 Clear Form for Next Table</button>
+            <button class="btn-ctrl btn-clear" onclick="clearForm()" style="margin-left: auto;">🧹 Clear Form</button>
         </div>
         
         <div class="builder-wrapper">
@@ -178,6 +183,7 @@
                 </tbody>
             </table>
         </div>
+        <div class="builder-tip">💡 Tip: You can copy cells from Excel or Google Sheets and paste them directly into the table above!</div>
 
         <div class="input-box" style="margin-bottom: 25px;">
             <label>Note / Legend (Optional)</label>
@@ -185,7 +191,7 @@
         </div>
 
         <button onclick="generateDiscussion()" id="genBtn" class="generate-btn">✨ Generate & Add to Document Below</button>
-        <div id="loading" class="loading">⚙️ Analyzing data, appending to document, and writing interpretations...</div>
+        <div id="loading" class="loading">⚙️ Analyzing data, generating insights, and appending to document...</div>
 
         <div id="output-area">
             <div class="doc-header">Compiled Results & Discussion Document</div>
@@ -194,20 +200,22 @@
             
             <div class="doc-controls" id="doc-controls">
                 <button class="btn-export" onclick="exportToWord()">📄 Export Entire Document to Word (.doc)</button>
-                <button class="btn-reset-doc" onclick="resetDocument()">🗑️ Clear Document</button>
+                <button class="btn-reset-doc" onclick="resetDocument()">🗑️ Clear Entire Document</button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-// --- Dynamic Table Builder Logic ---
+// --- Dynamic Table Builder Logic (PRESERVES DATA) ---
 function addRow() {
     const tbody = document.getElementById('builder-body');
     const cols = document.getElementById('builder-head').children.length;
     const tr = document.createElement('tr');
     for(let i=0; i<cols; i++) {
-        tr.innerHTML += `<td><input type="text" placeholder="..."></td>`;
+        const td = document.createElement('td');
+        td.innerHTML = `<input type="text" placeholder="...">`;
+        tr.appendChild(td);
     }
     tbody.appendChild(tr);
 }
@@ -220,9 +228,17 @@ function removeRow() {
 function addCol() {
     const thead = document.getElementById('builder-head');
     const tbody = document.getElementById('builder-body');
-    thead.innerHTML += `<th><input type="text" placeholder="New Col"></th>`;
+    
+    // Add header column
+    const th = document.createElement('th');
+    th.innerHTML = `<input type="text" placeholder="New Col">`;
+    thead.appendChild(th);
+    
+    // Add body columns
     for(let row of tbody.children) {
-        row.innerHTML += `<td><input type="text" placeholder="..."></td>`;
+        const td = document.createElement('td');
+        td.innerHTML = `<input type="text" placeholder="...">`;
+        row.appendChild(td);
     }
 }
 
@@ -239,15 +255,72 @@ function clearForm() {
     document.getElementById('tbl-num').value = '';
     document.getElementById('tbl-caption').value = '';
     document.getElementById('tbl-note').value = '';
-    const inputs = document.querySelectorAll('#builder-body input');
-    inputs.forEach(input => input.value = '');
+    document.querySelectorAll('#builder-body input').forEach(input => input.value = '');
 }
 
+// --- Excel Paste Event Listener ---
+document.getElementById('builder-table').addEventListener('paste', function(e) {
+    if (e.target.tagName === 'INPUT') {
+        e.preventDefault();
+        let pasteData = e.clipboardData.getData('text');
+        let rows = pasteData.split(/\r?\n/);
+        
+        let startTd = e.target.closest('td') || e.target.closest('th');
+        if (!startTd) return;
+        
+        let startTr = startTd.parentElement;
+        let isHeader = startTd.tagName === 'TH';
+        let container = startTr.parentElement;
+        
+        let startRowIdx = Array.from(container.children).indexOf(startTr);
+        let startColIdx = Array.from(startTr.children).indexOf(startTd);
+
+        // If pasting starts in the body
+        if(!isHeader) {
+            rows.forEach((row, rIdx) => {
+                if (!row.trim() && rIdx === rows.length - 1) return; // Skip last empty line
+                let cells = row.split('\t');
+                
+                // Add rows if we exceed current limit
+                let targetTr = container.children[startRowIdx + rIdx];
+                if (!targetTr) {
+                    addRow();
+                    targetTr = container.children[startRowIdx + rIdx];
+                }
+                
+                cells.forEach((cell, cIdx) => {
+                    // Add columns if we exceed current limit
+                    let targetTd = targetTr.children[startColIdx + cIdx];
+                    if (!targetTd) {
+                        addCol();
+                        targetTd = targetTr.children[startColIdx + cIdx];
+                    }
+                    if (targetTd) {
+                        let input = targetTd.querySelector('input');
+                        if (input) input.value = cell.trim();
+                    }
+                });
+            });
+        }
+    }
+});
+
+// --- Document Logic ---
 function resetDocument() {
     if(confirm("Are you sure you want to clear the compiled document? This cannot be undone.")) {
         document.getElementById('print-wrapper').innerHTML = '';
         document.getElementById('output-area').style.display = 'none';
         document.getElementById('doc-controls').style.display = 'none';
+    }
+}
+
+function removeBlock(btn) {
+    if(confirm("Remove this specific result from the document?")) {
+        btn.closest('.result-block').remove();
+        if(document.getElementById('print-wrapper').children.length === 0) {
+            document.getElementById('output-area').style.display = 'none';
+            document.getElementById('doc-controls').style.display = 'none';
+        }
     }
 }
 
@@ -268,7 +341,7 @@ function extractTableData() {
     return { headers, rows };
 }
 
-// Generate the HTML for the APA format table specifically for appending
+// Generate the HTML for the APA format table
 function generateTableHTML(num, title, note, tableData) {
     let html = `<div class="apa-table-container">`;
     html += `<div class="apa-table-num">${num || 'Table'}</div>`;
@@ -300,7 +373,7 @@ async function generateDiscussion() {
         else return;
     }
 
-    const tblNum = document.getElementById('tbl-num').value;
+    const tblNum = document.getElementById('tbl-num').value || 'The Table';
     const tblCaption = document.getElementById('tbl-caption').value;
     const tblNote = document.getElementById('tbl-note').value;
     const tableData = extractTableData();
@@ -329,9 +402,9 @@ async function generateDiscussion() {
     2. Inside the "Discussion" string, wrap EVERY paragraph in <p> tags. DO NOT use titles or headers for the paragraphs.
     
     DISCUSSION INSTRUCTIONS (Exactly 4 Paragraphs):
-    - Paragraph 1: Discuss the highest value, the lowest value, and the Grand Mean (calculate it if not explicitly stated). Explicitly mention their corresponding Verbal Interpretations (VI). 
-    - Paragraph 2: Explain the findings from Paragraph 1 in very simple, layman's terms so anyone can easily understand what the numbers actually mean in real life.
-    - Paragraph 3: Discuss the implications of these results. Based on these findings, what specific recommendations or actions could be made?
+    - Paragraph 1: **CRITICAL**: Begin the very first sentence by explicitly mentioning the table number using varied introductory phrasing (e.g., "As presented in ${tblNum}...", "${tblNum} highlights...", "${tblNum} provides data regarding..."). Do NOT use a rigid template. Discuss the highest value, the lowest value, and the Grand Mean. Explicitly mention their corresponding Verbal Interpretations. **SCOPE RESTRICTION: Focus strictly on the data provided in the table. Do not hallucinate or include variables/data not explicitly present.**
+    - Paragraph 2: Explain the findings from Paragraph 1 in very simple, layman's terms so anyone can easily understand what the numbers actually mean in real life context.
+    - Paragraph 3: Discuss the implications of these results based ONLY on the data. What specific recommendations or actions could be made based on these exact findings?
     - Paragraph 4: Provide literature citation(s) to support or contrast these findings (Maximum of 2 citations). Integrate them naturally into the text.
 
     REFERENCES INSTRUCTIONS:
@@ -378,10 +451,12 @@ async function generateDiscussion() {
         const block = document.createElement('div');
         block.className = 'result-block';
         
-        // This CSS ensures Word pushes the next block to a new page
-        block.style.pageBreakAfter = 'always'; 
-        
-        block.innerHTML = tableHtml + aiHtml;
+        // Add Delete Button and Content
+        block.innerHTML = `
+            <button class="delete-block-btn no-print" onclick="removeBlock(this)">🗑️ Remove</button>
+            ${tableHtml}
+            ${aiHtml}
+        `;
         printWrapper.appendChild(block);
 
         // 4. Reveal the document container
@@ -399,7 +474,14 @@ async function generateDiscussion() {
 
 // --- Export to Word ---
 function exportToWord() {
-    const content = document.getElementById("print-wrapper").innerHTML;
+    // Clone the wrapper so we can remove the delete buttons without affecting the webpage
+    const wrapper = document.getElementById("print-wrapper");
+    const clone = wrapper.cloneNode(true);
+    
+    // Remove all delete buttons from the cloned HTML
+    clone.querySelectorAll('.no-print').forEach(btn => btn.remove());
+    
+    const content = clone.innerHTML;
     
     const header = `
         <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
