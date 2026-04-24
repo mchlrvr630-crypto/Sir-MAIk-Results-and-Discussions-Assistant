@@ -275,13 +275,11 @@ document.getElementById('builder-table').addEventListener('paste', function(e) {
         let startRowIdx = Array.from(container.children).indexOf(startTr);
         let startColIdx = Array.from(startTr.children).indexOf(startTd);
 
-        // If pasting starts in the body
         if(!isHeader) {
             rows.forEach((row, rIdx) => {
-                if (!row.trim() && rIdx === rows.length - 1) return; // Skip last empty line
+                if (!row.trim() && rIdx === rows.length - 1) return; 
                 let cells = row.split('\t');
                 
-                // Add rows if we exceed current limit
                 let targetTr = container.children[startRowIdx + rIdx];
                 if (!targetTr) {
                     addRow();
@@ -289,7 +287,6 @@ document.getElementById('builder-table').addEventListener('paste', function(e) {
                 }
                 
                 cells.forEach((cell, cIdx) => {
-                    // Add columns if we exceed current limit
                     let targetTd = targetTr.children[startColIdx + cIdx];
                     if (!targetTd) {
                         addCol();
@@ -373,7 +370,8 @@ async function generateDiscussion() {
         else return;
     }
 
-    const tblNum = document.getElementById('tbl-num').value || 'The Table';
+    const rawTblNum = document.getElementById('tbl-num').value.trim();
+    const tblNum = rawTblNum || 'The Table';
     const tblCaption = document.getElementById('tbl-caption').value;
     const tblNote = document.getElementById('tbl-note').value;
     const tableData = extractTableData();
@@ -392,7 +390,7 @@ async function generateDiscussion() {
 
     const promptText = `Act as an Expert Academic Researcher and Statistician. The current year is 2026.
     
-    I have provided the following data table titled "${tblCaption}":
+    I have provided the following data table titled "${tblCaption}". The table's designation is explicitly "${tblNum}".
     ${dataString}
 
     Your task is to write the Results and Discussion interpretation for this table. 
@@ -402,10 +400,14 @@ async function generateDiscussion() {
     2. Inside the "Discussion" string, wrap EVERY paragraph in <p> tags. DO NOT use titles or headers for the paragraphs.
     
     DISCUSSION INSTRUCTIONS (Exactly 4 Paragraphs):
-    - Paragraph 1: **CRITICAL**: Begin the very first sentence by explicitly mentioning the table number using varied introductory phrasing (e.g., "As presented in ${tblNum}...", "${tblNum} highlights...", "${tblNum} provides data regarding..."). Do NOT use a rigid template. Discuss the highest value, the lowest value, and the Grand Mean. Explicitly mention their corresponding Verbal Interpretations. **SCOPE RESTRICTION: Focus strictly on the data provided in the table. Do not hallucinate or include variables/data not explicitly present.**
-    - Paragraph 2: Explain the findings from Paragraph 1 in very simple, layman's terms so anyone can easily understand what the numbers actually mean in real life context.
-    - Paragraph 3: Discuss the implications of these results based ONLY on the data. What specific recommendations or actions could be made based on these exact findings?
-    - Paragraph 4: Provide literature citation(s) to support or contrast these findings (Maximum of 2 citations). Integrate them naturally into the text.
+    - Paragraph 1 (Data Presentation): 
+      - **CRITICAL**: Begin the very first sentence by explicitly mentioning "${tblNum}" using varied introductory phrasing (e.g., "As presented in ${tblNum}...", "${tblNum} reveals...", "Data from ${tblNum} indicates..."). **DO NOT** use the generic phrase "Table 1" unless ${tblNum} is exactly "Table 1".
+      - Discuss the highest value, the lowest value, and the Grand Mean/Overall Result. Explicitly mention their corresponding Verbal Interpretations. 
+      - **CRITICAL - OTHER STATISTICAL TESTS**: Scan the columns and rows. If the table contains inferential statistical test values (e.g., p-values, t-values, F-values, Pearson r, standard deviations, chi-square), you MUST also explicitly interpret what these specific values mean (e.g., statistical significance, strength of correlation, degree of variance or difference).
+      - **SCOPE RESTRICTION**: Focus strictly on the data provided in the table. Do not hallucinate data that isn't there.
+    - Paragraph 2 (Layman's Terms): Explain the findings from Paragraph 1 in very simple, layman's terms so anyone can easily understand what the numbers actually mean in a real-life context.
+    - Paragraph 3 (Implications): Discuss the implications of these results based ONLY on the data. What specific recommendations or actions could be made based on these exact findings?
+    - Paragraph 4 (Literature Context): Provide literature citation(s) to support or contrast these findings (Maximum of 2 citations). Integrate them naturally into the text.
 
     REFERENCES INSTRUCTIONS:
     - Put this in the "References" key.
@@ -453,7 +455,7 @@ async function generateDiscussion() {
         
         // Add Delete Button and Content
         block.innerHTML = `
-            <button class="delete-block-btn no-print" onclick="removeBlock(this)">🗑️ Remove</button>
+            <button class="delete-block-btn no-print" onclick="removeBlock(this)">🗑️ Remove Section</button>
             ${tableHtml}
             ${aiHtml}
         `;
