@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GamAI Results & Discussion Architect</title>
+
+    <style>
+        /* Green and White Palette */
+        :root { 
+            --bg-page: #f0fdf4; 
+            --bg-panel: #ffffff; 
+            --primary: #15803d; 
+            --primary-light: #dcfce7;
+            --accent: #22c55e; 
+            --text-main: #1f2937;
+            --text-muted: #4b5563;
+            --border: #bbf7d0;
+            --btn-add: #16a34a;
+            --btn-del: #dc2626;
+            --btn-warn: #eab308;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Tahoma, sans-serif; 
+            background: var(--bg-page); 
+            padding: 20px; 
+            color: var(--text-main); 
+            display: flex; 
+            gap: 20px; 
+            justify-content: center; 
+            line-height: 1.6;
+        }
+        
+        .container { 
+            flex: 1; 
+            max-width: 1000px; 
+            background: var(--bg-panel); 
+            border-radius: 12px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05); 
+            border-top: 6px solid var(--primary); 
+            padding-bottom: 30px; 
+        }
+        
+        .header { padding: 25px; text-align: center; border-bottom: 1px solid var(--border); }
+        .header h1 { margin: 0; color: var(--primary); font-weight: 800; }
+        .header p { color: var(--text-muted); margin-top: 5px; font-size: 1.05rem; }
+        
+        .content { padding: 30px; }
+        
+        .section-title { 
+            font-weight: bold; 
+            color: var(--primary); 
+            border-bottom: 3px solid var(--primary-light); 
+            display: inline-block; 
+            margin-bottom: 20px; 
+            text-transform: uppercase; 
+            margin-top: 10px; 
+            font-size: 1.1rem;
+        }
+        
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .input-box { display: flex; flex-direction: column; }
+        
+        label { font-weight: 600; margin-bottom: 8px; font-size: 0.95rem; color: var(--text-main); }
+        input, textarea { 
+            padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem; 
+            transition: 0.2s; font-family: inherit;
+        }
+        input:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1); }
+        
+        /* Table Builder Styles */
+        .table-controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;}
+        .btn-ctrl { padding: 8px 15px; border: none; border-radius: 6px; color: white; cursor: pointer; font-weight: bold; transition: 0.2s;}
+        .btn-add { background: var(--btn-add); } .btn-add:hover { background: #15803d; }
+        .btn-rem { background: var(--btn-del); } .btn-rem:hover { background: #b91c1c; }
+        .btn-clear { background: var(--btn-warn); color: black;} .btn-clear:hover { background: #ca8a04; }
+        
+        .builder-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 20px; background: #fafafa;}
+        #builder-table { border-collapse: collapse; width: 100%; min-width: 600px; }
+        #builder-table th, #builder-table td { padding: 8px; border: 1px solid #e2e8f0; }
+        #builder-table th { background: var(--primary-light); }
+        #builder-table input { width: 100%; box-sizing: border-box; border: 1px solid transparent; background: transparent; padding: 6px; }
+        #builder-table input:focus { background: white; border: 1px solid var(--accent); }
+        #builder-table th input { font-weight: bold; text-align: center; color: var(--primary); }
+
+        .generate-btn { 
+            width: 100%; padding: 18px; background: var(--primary); color: white; border: none; 
+            border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.3s; 
+            box-shadow: 0 4px 10px rgba(21, 128, 61, 0.2);
+        }
+        .generate-btn:hover { background: var(--accent); color: black;}
+        .generate-btn:disabled { background: #9ca3af; cursor: not-allowed; box-shadow: none; color: white;}
+        
+        /* Export & Doc Controls */
+        .doc-controls { display: none; gap: 10px; margin-top: 20px; }
+        .btn-export { flex: 2; color: white; border: none; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; background: #1d4ed8; font-size: 1.1rem; transition: 0.2s;}
+        .btn-export:hover { background: #1e3a8a; }
+        .btn-reset-doc { flex: 1; background: var(--text-muted); color: white; border: none; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s;}
+        .btn-reset-doc:hover { background: #1f2937; }
+
+        .loading { text-align: center; display: none; padding: 20px; font-weight: bold; color: var(--primary); font-size: 1.1rem; }
+
+        /* Output Formatting for Document Builder */
+        #output-area { margin-top: 35px; display: none; padding-top: 20px; border-top: 3px dashed var(--border); }
+        .doc-header { text-align: center; color: var(--primary); margin-bottom: 20px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;}
+        
+        .result-block { margin-bottom: 50px; padding-bottom: 30px; border-bottom: 1px solid #e2e8f0; }
+        
+        /* Strict APA 7th Table CSS for Web Preview */
+        .apa-table-container { margin-bottom: 25px; font-family: 'Times New Roman', Times, serif; font-size: 12pt; color: black; }
+        .apa-table-num { font-weight: bold; margin-bottom: 4px; }
+        .apa-table-title { font-style: italic; margin-bottom: 12px; }
+        .apa-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; text-align: left; border-top: 2px solid black; border-bottom: 2px solid black; }
+        .apa-table th { border-bottom: 1px solid black; padding: 8px 5px; font-weight: normal; vertical-align: bottom; }
+        .apa-table td { padding: 8px 5px; vertical-align: middle; }
+        .apa-note { font-size: 11pt; line-height: 1.5; }
+        .apa-note i { font-style: italic; }
+
+        /* AI Text Formatting */
+        .ai-content { font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 2; text-align: justify; color: black;}
+        .ai-content p { text-indent: 0.5in; margin-top: 0; margin-bottom: 15px; }
+        .ai-content .ref-title { font-weight: bold; text-indent: 0; text-align: center; margin-top: 30px;}
+        .ai-content .reference { text-indent: -0.5in; padding-left: 0.5in; margin-bottom: 10px; line-height: 1.5;}
+        .ai-content a { color: #0000EE; text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Results & Discussion Architect</h1>
+        <p>Accumulative APA 7th Table & Interpretation Engine</p>
+    </div>
+
+    <div class="content">
+        <div class="section-title">I. Table Metadata</div>
+        <div class="grid-2">
+            <div class="input-box">
+                <label>Table Number</label>
+                <input type="text" id="tbl-num" placeholder="e.g., Table 1">
+            </div>
+            <div class="input-box">
+                <label>Table Caption / Title</label>
+                <input type="text" id="tbl-caption" placeholder="e.g., Level of Financial Literacy among Teachers">
+            </div>
+        </div>
+
+        <div class="section-title">II. Data Encoder</div>
+        <div class="table-controls">
+            <button class="btn-ctrl btn-add" onclick="addRow()">+ Add Row</button>
+            <button class="btn-ctrl btn-rem" onclick="removeRow()">- Remove Row</button>
+            <button class="btn-ctrl btn-add" onclick="addCol()">+ Add Column</button>
+            <button class="btn-ctrl btn-rem" onclick="removeCol()">- Remove Column</button>
+            <button class="btn-ctrl btn-clear" onclick="clearForm()" style="margin-left: auto;">🧹 Clear Form for Next Table</button>
+        </div>
+        
+        <div class="builder-wrapper">
+            <table id="builder-table">
+                <thead>
+                    <tr id="builder-head">
+                        <th><input type="text" value="Indicators"></th>
+                        <th><input type="text" value="Mean"></th>
+                        <th><input type="text" value="Verbal Interpretation"></th>
+                    </tr>
+                </thead>
+                <tbody id="builder-body">
+                    <tr>
+                        <td><input type="text" placeholder="Item 1"></td>
+                        <td><input type="text" placeholder="0.00"></td>
+                        <td><input type="text" placeholder="High"></td>
+                    </tr>
+                    <tr>
+                        <td><input type="text" placeholder="Item 2"></td>
+                        <td><input type="text" placeholder="0.00"></td>
+                        <td><input type="text" placeholder="High"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="input-box" style="margin-bottom: 25px;">
+            <label>Note / Legend (Optional)</label>
+            <textarea id="tbl-note" rows="2" placeholder="e.g., Note. VI = Verbal Interpretation. 4.50-5.00 (Strongly Agree)."></textarea>
+        </div>
+
+        <button onclick="generateDiscussion()" id="genBtn" class="generate-btn">✨ Generate & Add to Document Below</button>
+        <div id="loading" class="loading">⚙️ Analyzing data, appending to document, and writing interpretations...</div>
+
+        <div id="output-area">
+            <div class="doc-header">Compiled Results & Discussion Document</div>
+            
+            <div id="print-wrapper"></div>
+            
+            <div class="doc-controls" id="doc-controls">
+                <button class="btn-export" onclick="exportToWord()">📄 Export Entire Document to Word (.doc)</button>
+                <button class="btn-reset-doc" onclick="resetDocument()">🗑️ Clear Document</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// --- Dynamic Table Builder Logic ---
+function addRow() {
+    const tbody = document.getElementById('builder-body');
+    const cols = document.getElementById('builder-head').children.length;
+    const tr = document.createElement('tr');
+    for(let i=0; i<cols; i++) {
+        tr.innerHTML += `<td><input type="text" placeholder="..."></td>`;
+    }
+    tbody.appendChild(tr);
+}
+
+function removeRow() {
+    const tbody = document.getElementById('builder-body');
+    if(tbody.children.length > 1) tbody.removeChild(tbody.lastElementChild);
+}
+
+function addCol() {
+    const thead = document.getElementById('builder-head');
+    const tbody = document.getElementById('builder-body');
+    thead.innerHTML += `<th><input type="text" placeholder="New Col"></th>`;
+    for(let row of tbody.children) {
+        row.innerHTML += `<td><input type="text" placeholder="..."></td>`;
+    }
+}
+
+function removeCol() {
+    const thead = document.getElementById('builder-head');
+    const tbody = document.getElementById('builder-body');
+    if(thead.children.length > 1) {
+        thead.removeChild(thead.lastElementChild);
+        for(let row of tbody.children) row.removeChild(row.lastElementChild);
+    }
+}
+
+function clearForm() {
+    document.getElementById('tbl-num').value = '';
+    document.getElementById('tbl-caption').value = '';
+    document.getElementById('tbl-note').value = '';
+    const inputs = document.querySelectorAll('#builder-body input');
+    inputs.forEach(input => input.value = '');
+}
+
+function resetDocument() {
+    if(confirm("Are you sure you want to clear the compiled document? This cannot be undone.")) {
+        document.getElementById('print-wrapper').innerHTML = '';
+        document.getElementById('output-area').style.display = 'none';
+        document.getElementById('doc-controls').style.display = 'none';
+    }
+}
+
+// Extract data from the builder table
+function extractTableData() {
+    const theadInputs = document.querySelectorAll('#builder-head input');
+    const tbodyRows = document.querySelectorAll('#builder-body tr');
+    
+    let headers = Array.from(theadInputs).map(inp => inp.value.trim() || 'Untitled');
+    let rows = [];
+    
+    tbodyRows.forEach(row => {
+        let rowData = [];
+        row.querySelectorAll('input').forEach(inp => rowData.push(inp.value.trim()));
+        if(rowData.some(val => val !== '')) rows.push(rowData);
+    });
+
+    return { headers, rows };
+}
+
+// Generate the HTML for the APA format table specifically for appending
+function generateTableHTML(num, title, note, tableData) {
+    let html = `<div class="apa-table-container">`;
+    html += `<div class="apa-table-num">${num || 'Table'}</div>`;
+    html += `<div class="apa-table-title">${title || 'Table Title'}</div>`;
+    html += `<table class="apa-table"><thead><tr>`;
+    
+    tableData.headers.forEach(h => html += `<th>${h}</th>`);
+    html += `</tr></thead><tbody>`;
+    
+    tableData.rows.forEach(r => {
+        html += `<tr>`;
+        r.forEach(cell => html += `<td>${cell}</td>`);
+        html += `</tr>`;
+    });
+    
+    html += `</tbody></table>`;
+    if(note) html += `<div class="apa-note"><i>Note.</i> ${note}</div>`;
+    html += `</div>`;
+    
+    return html;
+}
+
+// --- AI Generation Logic ---
+async function generateDiscussion() {
+    let apiKey = localStorage.getItem("gamai_key");
+    if (!apiKey) {
+        apiKey = prompt("Enter your Gemini API Key:");
+        if (apiKey) localStorage.setItem("gamai_key", apiKey);
+        else return;
+    }
+
+    const tblNum = document.getElementById('tbl-num').value;
+    const tblCaption = document.getElementById('tbl-caption').value;
+    const tblNote = document.getElementById('tbl-note').value;
+    const tableData = extractTableData();
+
+    if(tableData.rows.length === 0) {
+        alert("Please enter some data into the table before generating.");
+        return;
+    }
+
+    document.getElementById('loading').style.display = "block";
+    document.getElementById('genBtn').disabled = true;
+
+    // Convert table data to string for the AI
+    let dataString = `Table Columns: ${tableData.headers.join(' | ')}\n`;
+    tableData.rows.forEach((r, i) => dataString += `Row ${i+1}: ${r.join(' | ')}\n`);
+
+    const promptText = `Act as an Expert Academic Researcher and Statistician. The current year is 2026.
+    
+    I have provided the following data table titled "${tblCaption}":
+    ${dataString}
+
+    Your task is to write the Results and Discussion interpretation for this table. 
+    
+    CRITICAL FORMATTING RULES:
+    1. Output strictly in JSON format with exactly two keys: "Discussion" and "References".
+    2. Inside the "Discussion" string, wrap EVERY paragraph in <p> tags. DO NOT use titles or headers for the paragraphs.
+    
+    DISCUSSION INSTRUCTIONS (Exactly 4 Paragraphs):
+    - Paragraph 1: Discuss the highest value, the lowest value, and the Grand Mean (calculate it if not explicitly stated). Explicitly mention their corresponding Verbal Interpretations (VI). 
+    - Paragraph 2: Explain the findings from Paragraph 1 in very simple, layman's terms so anyone can easily understand what the numbers actually mean in real life.
+    - Paragraph 3: Discuss the implications of these results. Based on these findings, what specific recommendations or actions could be made?
+    - Paragraph 4: Provide literature citation(s) to support or contrast these findings (Maximum of 2 citations). Integrate them naturally into the text.
+
+    REFERENCES INSTRUCTIONS:
+    - Put this in the "References" key.
+    - Format in APA 7th Edition. 
+    - Include ONLY the citations you used in Paragraph 4.
+    - Strictly use literature from 5 years backward from 2026 (2021-2026).
+    - **CRITICAL:** Every reference MUST have a valid, clickable URL or DOI link. Wrap the link in HTML <a> tags. Wrap each reference in a <div class="reference"> tag.
+
+    IMPORTANT: Return ONLY a valid JSON object. Do not include markdown like \`\`\`json.`;
+
+    try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${apiKey}`;
+        
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+                contents: [{ parts: [{ text: promptText }] }],
+                generationConfig: { responseMimeType: "application/json" }
+            })
+        });
+        
+        const data = await response.json();
+        if(data.error) throw new Error(data.error.message);
+
+        let aiText = data.candidates[0].content.parts[0].text;
+        aiText = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
+
+        const aiResponseJSON = JSON.parse(aiText);
+        
+        // 1. Get the APA Table HTML
+        const tableHtml = generateTableHTML(tblNum, tblCaption, tblNote, tableData);
+        
+        // 2. Format the AI HTML
+        let aiHtml = `<div class="ai-content">`;
+        aiHtml += aiResponseJSON.Discussion;
+        aiHtml += `<div class="ref-title">References</div>`;
+        aiHtml += aiResponseJSON.References;
+        aiHtml += `</div>`;
+        
+        // 3. Create a new Result Block and Append it
+        const printWrapper = document.getElementById('print-wrapper');
+        const block = document.createElement('div');
+        block.className = 'result-block';
+        
+        // This CSS ensures Word pushes the next block to a new page
+        block.style.pageBreakAfter = 'always'; 
+        
+        block.innerHTML = tableHtml + aiHtml;
+        printWrapper.appendChild(block);
+
+        // 4. Reveal the document container
+        document.getElementById('output-area').style.display = "block";
+        document.getElementById('doc-controls').style.display = "flex";
+
+    } catch (err) {
+        alert("Generation Error: " + err.message + "\n\nPlease check your data or API key.");
+        if(err.message.includes("API key")) localStorage.removeItem("gamai_key");
+    } finally {
+        document.getElementById('loading').style.display = "none";
+        document.getElementById('genBtn').disabled = false;
+    }
+}
+
+// --- Export to Word ---
+function exportToWord() {
+    const content = document.getElementById("print-wrapper").innerHTML;
+    
+    const header = `
+        <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+        <head>
+            <meta charset='utf-8'>
+            <title>Results and Discussion</title>
+            <style>
+                body { font-family: 'Times New Roman', Times, serif; font-size: 12pt; }
+                p { text-align: justify; text-indent: 0.5in; margin-top: 0; margin-bottom: 12pt; line-height: 2; }
+                
+                /* APA Table Strict Word CSS */
+                .apa-table-num { font-weight: bold; margin-bottom: 4pt; }
+                .apa-table-title { font-style: italic; margin-bottom: 12pt; }
+                table { border-collapse: collapse; width: 100%; margin-bottom: 8pt; border-top: 1.5pt solid black; border-bottom: 1.5pt solid black; }
+                th { border-bottom: 1pt solid black; padding: 6pt; text-align: left; font-weight: normal; vertical-align: bottom;}
+                td { padding: 6pt; text-align: left; vertical-align: top;}
+                .apa-note { font-size: 11pt; line-height: 1.5; margin-bottom: 24pt; }
+                
+                /* Page Breaks for Multiple Tables */
+                .result-block { page-break-after: always; clear: both; margin-bottom: 24pt;}
+                
+                /* References */
+                .ref-title { font-weight: bold; text-align: center; margin-top: 24pt; margin-bottom: 12pt; }
+                .reference { text-indent: -0.5in; padding-left: 0.5in; margin-bottom: 12pt; line-height: 2; }
+                a { color: #0000EE; text-decoration: underline; }
+            </style>
+        </head>
+        <body>
+    `;
+    const footer = "</body></html>";
+    const html = header + content + footer;
+    
+    const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'Compiled_Results_and_Discussion.doc';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+</script>
+</body>
+</html>
