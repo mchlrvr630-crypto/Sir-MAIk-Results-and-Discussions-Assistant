@@ -32,9 +32,10 @@
             line-height: 1.6;
         }
         
+        /* Main Container */
         .container { 
             flex: 1; 
-            max-width: 1000px; 
+            max-width: 950px; 
             background: var(--bg-panel); 
             border-radius: 12px; 
             box-shadow: 0 10px 30px rgba(0,0,0,0.05); 
@@ -48,6 +49,33 @@
         
         .content { padding: 30px; }
         
+        /* History Sidebar */
+        .history-sidebar { 
+            width: 300px; 
+            background: var(--bg-panel); 
+            border-radius: 12px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05); 
+            padding: 20px; 
+            height: fit-content; 
+            border-top: 6px solid var(--accent); 
+        }
+        .history-sidebar h3 { color: var(--primary); border-bottom: 2px solid var(--primary-light); padding-bottom: 10px; margin-top: 0; font-size: 1.1rem; text-transform: uppercase;}
+        .history-item { 
+            background: var(--bg-page); 
+            border: 1px solid var(--border); 
+            padding: 12px; 
+            margin-bottom: 10px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 0.9rem; 
+            transition: 0.2s; 
+            color: var(--text-main);
+        }
+        .history-item:hover { border-color: var(--accent); background: var(--primary-light); }
+        .clear-btn { background: var(--btn-del); color: white; padding: 10px; margin-top: 10px; font-size: 0.9rem; border: none; border-radius: 6px; width: 100%; cursor: pointer; }
+        .clear-btn:hover { background: #b91c1c; }
+
+        /* Form Elements */
         .section-title { 
             font-weight: bold; 
             color: var(--primary); 
@@ -199,14 +227,23 @@
             <div id="print-wrapper"></div>
             
             <div class="doc-controls" id="doc-controls">
-                <button class="btn-export" onclick="exportToWord()">📄 Export Entire Document to Word (.doc)</button>
-                <button class="btn-reset-doc" onclick="resetDocument()">🗑️ Clear Entire Document</button>
+                <button class="btn-export" onclick="exportToWord()">📄 Name & Export Document (.doc)</button>
+                <button class="btn-reset-doc" onclick="resetDocument(false)">🗑️ Discard Entire Document</button>
             </div>
         </div>
     </div>
 </div>
 
+<div class="history-sidebar">
+    <h3>Export History (Last 5)</h3>
+    <div id="history-list"></div>
+    <button class="clear-btn" onclick="clearHistory()">🗑️ Clear History</button>
+</div>
+
 <script>
+// --- Initialization ---
+document.addEventListener("DOMContentLoaded", loadHistory);
+
 // --- Dynamic Table Builder Logic (PRESERVES DATA) ---
 function addRow() {
     const tbody = document.getElementById('builder-body');
@@ -229,12 +266,10 @@ function addCol() {
     const thead = document.getElementById('builder-head');
     const tbody = document.getElementById('builder-body');
     
-    // Add header column
     const th = document.createElement('th');
     th.innerHTML = `<input type="text" placeholder="New Col">`;
     thead.appendChild(th);
     
-    // Add body columns
     for(let row of tbody.children) {
         const td = document.createElement('td');
         td.innerHTML = `<input type="text" placeholder="...">`;
@@ -302,9 +337,9 @@ document.getElementById('builder-table').addEventListener('paste', function(e) {
     }
 });
 
-// --- Document Logic ---
-function resetDocument() {
-    if(confirm("Are you sure you want to clear the compiled document? This cannot be undone.")) {
+// --- Document UI Logic ---
+function resetDocument(silent = false) {
+    if(silent || confirm("Are you sure you want to clear the compiled document? This cannot be undone.")) {
         document.getElementById('print-wrapper').innerHTML = '';
         document.getElementById('output-area').style.display = 'none';
         document.getElementById('doc-controls').style.display = 'none';
@@ -315,8 +350,7 @@ function removeBlock(btn) {
     if(confirm("Remove this specific result from the document?")) {
         btn.closest('.result-block').remove();
         if(document.getElementById('print-wrapper').children.length === 0) {
-            document.getElementById('output-area').style.display = 'none';
-            document.getElementById('doc-controls').style.display = 'none';
+            resetDocument(true);
         }
     }
 }
@@ -338,7 +372,6 @@ function extractTableData() {
     return { headers, rows };
 }
 
-// Generate the HTML for the APA format table
 function generateTableHTML(num, title, note, tableData) {
     let html = `<div class="apa-table-container">`;
     html += `<div class="apa-table-num">${num || 'Table'}</div>`;
@@ -384,7 +417,6 @@ async function generateDiscussion() {
     document.getElementById('loading').style.display = "block";
     document.getElementById('genBtn').disabled = true;
 
-    // Convert table data to string for the AI
     let dataString = `Table Columns: ${tableData.headers.join(' | ')}\n`;
     tableData.rows.forEach((r, i) => dataString += `Row ${i+1}: ${r.join(' | ')}\n`);
 
@@ -401,9 +433,9 @@ async function generateDiscussion() {
     
     DISCUSSION INSTRUCTIONS (Exactly 4 Paragraphs):
     - Paragraph 1 (Data Presentation): 
-      - **CRITICAL**: Begin the very first sentence by explicitly mentioning "${tblNum}" using varied introductory phrasing (e.g., "As presented in ${tblNum}...", "${tblNum} reveals...", "Data from ${tblNum} indicates..."). **DO NOT** use the generic phrase "Table 1" unless ${tblNum} is exactly "Table 1".
+      - **CRITICAL**: Begin the very first sentence by explicitly mentioning "${tblNum}" using varied introductory phrasing. **DO NOT** use the generic phrase "Table 1" unless ${tblNum} is exactly "Table 1".
       - Discuss the highest value, the lowest value, and the Grand Mean/Overall Result. Explicitly mention their corresponding Verbal Interpretations. 
-      - **CRITICAL - OTHER STATISTICAL TESTS**: Scan the columns and rows. If the table contains inferential statistical test values (e.g., p-values, t-values, F-values, Pearson r, standard deviations, chi-square), you MUST also explicitly interpret what these specific values mean (e.g., statistical significance, strength of correlation, degree of variance or difference).
+      - **CRITICAL - OTHER STATISTICAL TESTS**: Scan the columns and rows. If the table contains inferential statistical test values (e.g., p-values, t-values, F-values, Pearson r, standard deviations, chi-square), you MUST also explicitly interpret what these specific values mean.
       - **SCOPE RESTRICTION**: Focus strictly on the data provided in the table. Do not hallucinate data that isn't there.
     - Paragraph 2 (Layman's Terms): Explain the findings from Paragraph 1 in very simple, layman's terms so anyone can easily understand what the numbers actually mean in a real-life context.
     - Paragraph 3 (Implications): Discuss the implications of these results based ONLY on the data. What specific recommendations or actions could be made based on these exact findings?
@@ -438,22 +470,18 @@ async function generateDiscussion() {
 
         const aiResponseJSON = JSON.parse(aiText);
         
-        // 1. Get the APA Table HTML
         const tableHtml = generateTableHTML(tblNum, tblCaption, tblNote, tableData);
         
-        // 2. Format the AI HTML
         let aiHtml = `<div class="ai-content">`;
         aiHtml += aiResponseJSON.Discussion;
         aiHtml += `<div class="ref-title">References</div>`;
         aiHtml += aiResponseJSON.References;
         aiHtml += `</div>`;
         
-        // 3. Create a new Result Block and Append it
         const printWrapper = document.getElementById('print-wrapper');
         const block = document.createElement('div');
         block.className = 'result-block';
         
-        // Add Delete Button and Content
         block.innerHTML = `
             <button class="delete-block-btn no-print" onclick="removeBlock(this)">🗑️ Remove Section</button>
             ${tableHtml}
@@ -461,7 +489,6 @@ async function generateDiscussion() {
         `;
         printWrapper.appendChild(block);
 
-        // 4. Reveal the document container
         document.getElementById('output-area').style.display = "block";
         document.getElementById('doc-controls').style.display = "flex";
 
@@ -474,15 +501,69 @@ async function generateDiscussion() {
     }
 }
 
+// --- History Logic (Export Driven) ---
+function saveToHistory(title, htmlData) {
+    let history = JSON.parse(localStorage.getItem("gamai_results_history")) || [];
+    const newItem = { id: Date.now(), title: title || "Untitled Export", date: new Date().toLocaleString(), data: htmlData };
+    
+    history.unshift(newItem);
+    if (history.length > 5) history.pop(); // Keep only 5 latest exported items
+    
+    localStorage.setItem("gamai_results_history", JSON.stringify(history));
+    loadHistory();
+}
+
+function loadHistory() {
+    const history = JSON.parse(localStorage.getItem("gamai_results_history")) || [];
+    const list = document.getElementById('history-list');
+    list.innerHTML = "";
+    
+    if(history.length === 0) {
+        list.innerHTML = "<p style='color:var(--text-muted); font-size:0.9rem;'>No exported history yet.</p>";
+        return;
+    }
+    
+    history.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'history-item';
+        div.innerHTML = `<strong>${item.title}</strong><br><small style="color:var(--text-muted);">${item.date}</small>`;
+        
+        // Restore history to the document
+        div.onclick = () => {
+            if(document.getElementById('print-wrapper').innerHTML.trim() !== "") {
+                if(!confirm("Warning: You have un-exported work in your current document. Do you want to overwrite it and load this previous export?")) return;
+            }
+            document.getElementById('print-wrapper').innerHTML = item.data;
+            document.getElementById('output-area').style.display = "block";
+            document.getElementById('doc-controls').style.display = "flex";
+        };
+        list.appendChild(div);
+    });
+}
+
+function clearHistory() {
+    if(confirm("Are you sure you want to clear your saved export history?")) {
+        localStorage.removeItem("gamai_results_history");
+        loadHistory();
+    }
+}
+
 // --- Export to Word ---
 function exportToWord() {
-    // Clone the wrapper so we can remove the delete buttons without affecting the webpage
     const wrapper = document.getElementById("print-wrapper");
+    if(wrapper.children.length === 0) return alert("There is no generated document to export.");
+
+    // Prompt for custom filename
+    let fileName = prompt("Enter a name for your file:", "Compiled_Results_and_Discussion");
+    if (fileName === null) return; // User pressed cancel
+    if (fileName.trim() === "") fileName = "Compiled_Results_and_Discussion"; // Fallback if empty
+
+    // Save EXACT raw innerHTML to history before removing buttons, so they can delete blocks if restored later
+    saveToHistory(fileName, wrapper.innerHTML);
+
+    // Clone the wrapper to strip out buttons for the Word Document
     const clone = wrapper.cloneNode(true);
-    
-    // Remove all delete buttons from the cloned HTML
     clone.querySelectorAll('.no-print').forEach(btn => btn.remove());
-    
     const content = clone.innerHTML;
     
     const header = `
@@ -520,10 +601,17 @@ function exportToWord() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'Compiled_Results_and_Discussion.doc';
+    
+    // Attach .doc extension safely
+    link.download = fileName.endsWith('.doc') ? fileName : fileName + '.doc';
+    
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    // Immediately clear the document after successful export
+    resetDocument(true); 
+    alert("Document exported successfully and saved to history!");
 }
 </script>
 </body>
