@@ -214,7 +214,7 @@
         <div class="builder-tip">💡 Tip: You can copy cells from Excel or Google Sheets and paste them directly into the table above!</div>
 
         <div class="input-box" style="margin-bottom: 25px;">
-            <label>Note / Legend (Optional)</label>
+            <label>Note / Legend (Crucial for AI Interpretation)</label>
             <textarea id="tbl-note" rows="2" placeholder="e.g., Note. VI = Verbal Interpretation. 4.50-5.00 (Strongly Agree)."></textarea>
         </div>
 
@@ -425,6 +425,8 @@ async function generateDiscussion() {
     I have provided the following data table titled "${tblCaption}". The table's designation is explicitly "${tblNum}".
     ${dataString}
 
+    Note / Legend provided for this table: "${tblNote}"
+
     Your task is to write the Results and Discussion interpretation for this table. 
     
     CRITICAL FORMATTING RULES:
@@ -435,9 +437,10 @@ async function generateDiscussion() {
     - Paragraph 1 (Data Presentation): 
       - **CRITICAL**: Begin the very first sentence by explicitly mentioning "${tblNum}" using varied introductory phrasing. **DO NOT** use the generic phrase "Table 1" unless ${tblNum} is exactly "Table 1".
       - Discuss the highest value, the lowest value, and the Grand Mean/Overall Result. Explicitly mention their corresponding Verbal Interpretations. 
+      - **CRITICAL - VERBAL DESCRIPTION**: Refer strictly to the "Note / Legend" provided above to correctly identify the meaning of acronyms (e.g., VI) and the descriptive equivalents of the values.
       - **CRITICAL - OTHER STATISTICAL TESTS**: Scan the columns and rows. If the table contains inferential statistical test values (e.g., p-values, t-values, F-values, Pearson r, standard deviations, chi-square), you MUST also explicitly interpret what these specific values mean.
       - **SCOPE RESTRICTION**: Focus strictly on the data provided in the table. Do not hallucinate data that isn't there.
-    - Paragraph 2 (Layman's Terms): Explain the findings from Paragraph 1 in very simple, layman's terms so anyone can easily understand what the numbers actually mean in a real-life context.
+    - Paragraph 2 (Practical Meaning): Explain the findings from Paragraph 1 so anyone can easily understand what the numbers actually mean in a real-life context. **CRITICAL**: Do NOT use meta-phrases like "In simple terms," "Simply put," or "To put it simply" at the beginning of the paragraph. Just start explaining directly.
     - Paragraph 3 (Implications): Discuss the implications of these results based ONLY on the data. What specific recommendations or actions could be made based on these exact findings?
     - Paragraph 4 (Literature Context): Provide literature citation(s) to support or contrast these findings (Maximum of 2 citations). Integrate them naturally into the text.
 
@@ -507,7 +510,7 @@ function saveToHistory(title, htmlData) {
     const newItem = { id: Date.now(), title: title || "Untitled Export", date: new Date().toLocaleString(), data: htmlData };
     
     history.unshift(newItem);
-    if (history.length > 5) history.pop(); // Keep only 5 latest exported items
+    if (history.length > 5) history.pop(); 
     
     localStorage.setItem("gamai_results_history", JSON.stringify(history));
     loadHistory();
@@ -528,7 +531,6 @@ function loadHistory() {
         div.className = 'history-item';
         div.innerHTML = `<strong>${item.title}</strong><br><small style="color:var(--text-muted);">${item.date}</small>`;
         
-        // Restore history to the document
         div.onclick = () => {
             if(document.getElementById('print-wrapper').innerHTML.trim() !== "") {
                 if(!confirm("Warning: You have un-exported work in your current document. Do you want to overwrite it and load this previous export?")) return;
@@ -553,15 +555,12 @@ function exportToWord() {
     const wrapper = document.getElementById("print-wrapper");
     if(wrapper.children.length === 0) return alert("There is no generated document to export.");
 
-    // Prompt for custom filename
     let fileName = prompt("Enter a name for your file:", "Compiled_Results_and_Discussion");
-    if (fileName === null) return; // User pressed cancel
-    if (fileName.trim() === "") fileName = "Compiled_Results_and_Discussion"; // Fallback if empty
+    if (fileName === null) return; 
+    if (fileName.trim() === "") fileName = "Compiled_Results_and_Discussion"; 
 
-    // Save EXACT raw innerHTML to history before removing buttons, so they can delete blocks if restored later
     saveToHistory(fileName, wrapper.innerHTML);
 
-    // Clone the wrapper to strip out buttons for the Word Document
     const clone = wrapper.cloneNode(true);
     clone.querySelectorAll('.no-print').forEach(btn => btn.remove());
     const content = clone.innerHTML;
@@ -602,14 +601,12 @@ function exportToWord() {
     const link = document.createElement('a');
     link.href = url;
     
-    // Attach .doc extension safely
     link.download = fileName.endsWith('.doc') ? fileName : fileName + '.doc';
     
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
-    // Immediately clear the document after successful export
     resetDocument(true); 
     alert("Document exported successfully and saved to history!");
 }
